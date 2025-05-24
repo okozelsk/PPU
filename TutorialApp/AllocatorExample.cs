@@ -25,11 +25,9 @@ namespace TutorialApp
         public AllocatorExample()
         {
             Console.Clear();
-            Console.WriteLine("Ensuring the singleton instance of GPUAllocator is initialized...");
-            GPU.Allocator.SetMode(GPUAllocator.Mode.Standard);
             Random rand = new();
             Console.WriteLine("Initializing big 2D array of random float values for example purposes...");
-            _big2DArrayOfFloats = new float[1280, 5120];
+            _big2DArrayOfFloats = new float[10000, 15000];
             for (int i = 0; i < _big2DArrayOfFloats.GetLength(0); i++)
             {
                 for (int j = 0; j < _big2DArrayOfFloats.GetLength(1); j++)
@@ -57,7 +55,8 @@ namespace TutorialApp
         private float[,] NeighborSum(string threadName, float[,] input)
         {
             float[,] result = new float[input.GetLength(0), input.GetLength(1)];
-            
+            int radius = 3; // Radius for neighbor summation
+
             void CPUWorkChunk(Tuple<int, int>partition)
             {
                 int rows = input.GetLength(0);
@@ -70,9 +69,9 @@ namespace TutorialApp
                     {
                         float sum = 0f;
                         // Sum neighbors
-                        for (int i = -1; i <= 1; i++)
+                        for (int i = -radius; i <= radius; i++)
                         {
-                            for (int j = -1; j <= 1; j++)
+                            for (int j = -radius; j <= radius; j++)
                             {
                                 if (i == 0 && j == 0)
                                     continue; //Skip the center element
@@ -91,7 +90,7 @@ namespace TutorialApp
                 return;
             }
 
-            static void GPUWorkChung(ArrayView2D<float, Stride2D.DenseY> input, ArrayView2D<float, Stride2D.DenseY> output)
+            static void GPUWorkChung(ArrayView2D<float, Stride2D.DenseY> input, ArrayView2D<float, Stride2D.DenseY> output, int radius)
             {
                 //How many threads is involved?
                 int numOfGridThreads = Grid.DimX * Group.DimX;
@@ -104,9 +103,9 @@ namespace TutorialApp
                     int x = myScopeIdx % input.IntExtent.Y;
                     //Sum neighbors around the center element
                     float sum = 0f;
-                    for (int i = -1; i <= 1; i++)
+                    for (int i = -radius; i <= radius; i++)
                     {
-                        for (int j = -1; j <= 1; j++)
+                        for (int j = -radius; j <= radius; j++)
                         {
                             if (i == 0 & j == 0)
                                 continue; //Skip the center element
@@ -142,15 +141,16 @@ namespace TutorialApp
                     using MemoryBuffer2D<float, Stride2D.DenseY> srcArray = a.AccelObj.Allocate2DDenseY<float>(input);
                     using MemoryBuffer2D<float, Stride2D.DenseY> dstArray = a.AccelObj.Allocate2DDenseY<float>(srcArray.IntExtent);
                     string kernelName = $"{nameof(TutorialApp)}.{nameof(AllocatorExample)}.{nameof(NeighborSum)}.{nameof(GPUWorkChung)}";
-                    var kernel = a.Kernels.GetOrAddKernel<Action<KernelConfig, ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>>>(
+                    var kernel = a.Kernels.GetOrAddKernel<Action<KernelConfig, ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>, int>>(
                                     kernelName,
-                                    () => a.AccelObj.LoadStreamKernel<ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>>(GPUWorkChung)
+                                    () => a.AccelObj.LoadStreamKernel<ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>, int>(GPUWorkChung)
                                     );
                     ///////////////////////////////////////////////////////
                     //Execute the kernel with the specified grid and group dimensions.
                     kernel(a.GetKernelConfig(srcArray.Length, true),
                            srcArray.View,
-                           dstArray.View
+                           dstArray.View,
+                           radius
                            );
                     a.AccelObj.Synchronize();
                     dstArray.CopyToCPU(result);
@@ -163,6 +163,7 @@ namespace TutorialApp
         private void ExecuteParallelSequence()
         {
             Stopwatch sw = new Stopwatch();
+            Console.WriteLine();
             Console.WriteLine($"Parallel sequence started with {nameof(GPUAllocator)} operation mode {Enum.GetName(typeof(GPUAllocator.Mode), GPU.Allocator.CurrentMode())}...");
             sw.Start();
             Parallel.Invoke(
