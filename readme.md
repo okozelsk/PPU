@@ -3,7 +3,7 @@
 - thread-safe balanced utilization of all available GPU devices on host machine
 - fast loading of GPU kernels
 
-Repository consists of the main library (**PPU4ILGPU**) and a small console application (**TutorialApp**), where it is shown in the form of examples how to work with the library.
+Repository consists of the main library (**PPU4ILGPU**) and a small console application (**TutorialApp**), where it is shown in the form of examples how to use the library.
 <br />
 
 ## Dependencies
