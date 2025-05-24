@@ -26,6 +26,7 @@ namespace PPU4ILGPU
         /// </summary>
         /// <param name="accelerator">The <see cref="Accelerator"/> instance associated with the GPU streams.  This parameter cannot be <see
         /// langword="null"/>.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public GPUStreamPool(Accelerator accelerator)
         {
             ArgumentNullException.ThrowIfNull(accelerator);

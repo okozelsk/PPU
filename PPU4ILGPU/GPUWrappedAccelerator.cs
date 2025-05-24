@@ -52,6 +52,7 @@ namespace PPU4ILGPU
         /// </summary>
         /// <param name="context">The context in which the accelerator will operate. Cannot be <see langword="null"/>.</param>
         /// <param name="device">The device used to create the accelerator. Cannot be <see langword="null"/>.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public GPUWrappedAccelerator(Context context, Device device)
         {
             ArgumentNullException.ThrowIfNull(context);
@@ -76,9 +77,10 @@ namespace PPU4ILGPU
         /// <param name="gridStrideLoop">A boolean value indicating whether to use a grid-stride loop if the number of data elements exceeds the
         /// maximum number of groups. If <see langword="true"/>, the kernel will use the maximum number of groups and
         /// rely on a grid-stride loop to process all elements. If <see langword="false"/>, the kernel will use the
-        /// number of groups required to cover all data elements, even if it exceeds the maximum.</param>
+        /// number of groups required to cover all data elements, even if it exceeds the maximum number of groups.</param>
         /// <returns>A <see cref="KernelConfig"/> structure containing the number of kernel groups and the group size required
         /// for processing the data.</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
         public KernelConfig GetKernelConfig(long numOfDataElements, bool gridStrideLoop = false)
         {
             ObjectDisposedException.ThrowIf(_isDisposed != 0, this);

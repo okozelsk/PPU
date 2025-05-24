@@ -6,7 +6,7 @@
     /// </summary>
     /// <remarks>The <see cref="GPU"/> class is a singleton that provides a thread-safe, lazily initialized
     /// instance of  <see cref="GPUAllocator"/>. The allocator is automatically disposed when the application exits,
-    /// ensuring  proper cleanup of GPU resources. This class cannot be instantiated directly.</remarks>
+    /// ensuring  proper cleanup of GPU resources. <see cref="GPU"/> class cannot be instantiated directly.</remarks>
     public sealed class GPU
     {
         private static readonly Lazy<GPUAllocator> lazy = new(() => new GPUAllocator(GPUAllocator.Mode.Standard));

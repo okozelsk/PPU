@@ -8,20 +8,27 @@ namespace PPU4ILGPU
     /// <summary>
     /// Allocates available GPU devices among CPU threads using simple load balancing.
     /// Offers various modes of operation to suit different needs (debugging, testing of pure CPU versions of methods, etc.).
+    /// There should be only one instance of this class in the application.
+    /// You can use <see cref="GPU"/> class providing singleton or you can instantiate class by 
+    /// yourself and use it in your dependency injection. <see cref="GPUAllocator"/> class implements
+    /// <see cref="IDisposable"/> to release resources when the allocator is no longer needed.
+    /// <see cref="GPU"/> class has implemented internal mechanism to dispose instance
+    /// when application is terminating.
+    /// In case of dependency injection scenario it is up to you to ensure that instance will be properly disposed
+    /// when no longer needed by calling the <see cref="Dispose"/> method.
     /// </summary>
-    /// <remarks>The <see cref="GPUAllocator"/> class is designed to manage GPU resources efficiently
-    /// for computational tasks. It supports multiple modes of operation, allowing users to select the most appropriate
-    /// resource allocation strategy for their needs.  The allocator ensures thread-safe access to resources and
-    /// tracks the number of active jobs to optimize resource utilization. Users must call <see cref="Acquire"/> to
-    /// obtain an accelerator and <see cref="Release"/> to release it after use. Failure to call <see cref="Release"/>
-    /// may result in resource leaks or inconsistent state.  This class implements <see cref="IDisposable"/> to release
-    /// resources when the allocator is no longer needed. Ensure that <see cref="Dispose"/> is called to clean up
-    /// resources properly.</remarks>
+    /// <remarks>The <see cref="GPUAllocator"/> class supports multiple modes of operation, allowing
+    /// users to select the most appropriate resource allocation strategy for their needs.
+    /// The <see cref="GPUAllocator"/> ensures thread-safe access to resources and
+    /// tracks the number of active jobs to optimize resource utilization.
+    /// Users must call <see cref="Acquire"/> to obtain an accelerator and <see cref="Release"/>
+    /// to release it after use. Failure to call <see cref="Release"/>
+    /// may result in resource leaks or inconsistent state.</remarks>
     public sealed class GPUAllocator : IDisposable
     {
         //Enums
         /// <summary>
-        /// Specifies the operational mode for workload distribution and hardware utilization.
+        /// Specifies the operational mode for workload distribution to available hardware.
         /// </summary>
         /// <remarks>The <see cref="Mode"/> enumeration defines various modes for utilizing hardware
         /// accelerators, such as GPUs or CPUs, to execute workloads. Each mode determines how resources are allocated
@@ -62,12 +69,12 @@ namespace PPU4ILGPU
         private class AccelJobsPair
         {
             internal GPUWrappedAccelerator WrappedAccel { get; }
-            internal int NumOfBookedJobs { get; set; } = 0;
+            internal int NumOfBookedJobs { get; set; }
 
-            internal AccelJobsPair(GPUWrappedAccelerator wrappedAccel, int numOfBookedJobs)
+            internal AccelJobsPair(GPUWrappedAccelerator wrappedAccel)
             {
                 WrappedAccel = wrappedAccel;
-                NumOfBookedJobs = numOfBookedJobs;
+                NumOfBookedJobs = 0;
             }
 
         }
@@ -120,12 +127,12 @@ namespace PPU4ILGPU
                 {
                     // Create an accelerator for GPU device
                     GPUWrappedAccelerator wAcc = new(_context, device);
-                    _GPUs.Add(new(wAcc, 0));
+                    _GPUs.Add(new(wAcc));
                 }
                 else if (device.AcceleratorType == AcceleratorType.CPU)
                 {
                     // Create an accelerator for CPU device
-                    _CPU = new(new(_context, device), 0);
+                    _CPU = new(new(_context, device));
                 }
             }
             //Sort GPU accelerators from the most powerful to the least powerful
@@ -137,6 +144,11 @@ namespace PPU4ILGPU
         /// <summary>
         /// Sets the operational mode of the allocator.
         /// </summary>
+        /// <remarks>
+        /// Initialization of the <see cref="GPUAllocator"/> takes time so in singleton scenario
+        /// it makes sense to ensure that the object is initialized before first real runtime call.
+        /// To do that, you can call this instance method at the desired place in your code.
+        /// </remarks>
         /// <param name="mode">The new mode to set. This value determines the behavior of the allocator.</param>
         /// <exception cref="ObjectDisposedException"></exception>
         public void SetMode(Mode mode)
@@ -147,6 +159,32 @@ namespace PPU4ILGPU
                 _mode = mode;
                 return;
             }
+        }
+
+        /// <summary>
+        /// Retrieves the current operational mode.
+        /// </summary>
+        /// <returns>The current <see cref="Mode"/>.</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
+        public Mode CurrentMode()
+        {
+            ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+            lock (_syncRoot)
+            {
+                return _mode;
+            }
+        }
+
+        /// <summary>
+        /// Retrieves a list of available GPUs wrapped in <see cref="GPUWrappedAccelerator"/> objects.
+        /// </summary>
+        /// <returns>A list of <see cref="GPUWrappedAccelerator"/> instances representing the available GPUs. The list will be
+        /// empty if no GPUs are available.</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
+        public List<GPUWrappedAccelerator> GetAvailableGPUs()
+        {
+            ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+            return _GPUs.Select(x => x.WrappedAccel).ToList();
         }
 
         private void IncNumOfBookedJobs()
@@ -170,6 +208,7 @@ namespace PPU4ILGPU
         /// returns <see langword="null"/>.</remarks>
         /// <returns>A <see cref="GPUWrappedAccelerator"/> representing the selected accelerator, or <see langword="null"/> if no
         /// suitable accelerator is available.</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
         public GPUWrappedAccelerator? Acquire()
         {
             ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
@@ -237,6 +276,7 @@ namespace PPU4ILGPU
         /// <param name="accel">The GPU accelerator to release. Must have been previously acquired.</param>
         /// <exception cref="ApplicationException">Thrown if the release operation detects an inconsistent number of acquire and release calls.</exception>
         /// <exception cref="ArgumentException">Thrown if the specified <paramref name="accel"/> is not found in the list of accelerators.</exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         public void Release(GPUWrappedAccelerator accel)
         {
             ObjectDisposedException.ThrowIf(_isDisposed != 0, this);

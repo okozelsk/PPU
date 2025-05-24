@@ -27,27 +27,14 @@ namespace TutorialApp
         public AcceleratorExample()
         {
             Console.Clear();
-            Console.WriteLine("PPU4ILGPU example GPUWrappedAccelerator pattern started");
             Console.WriteLine("Initializing ILGPU context...");
             _context = Context.CreateDefault();
             Console.WriteLine("Context object obtained");
-            Console.WriteLine($"Asking preferred device...");
+            Console.WriteLine("Asking preferred device...");
             _device = _context.GetPreferredDevice(false);
             Console.WriteLine($"Preferred device {_device.Name} obtained");
             _isDisposed = false;
             Console.WriteLine();
-        }
-
-        /// <summary>
-        /// Determines whether the specified value is within the valid range for a given dimension.
-        /// </summary>
-        /// <param name="d">The value to check.</param>
-        /// <param name="dim">The upper bound of the range (exclusive). Must be greater than or equal to 0.</param>
-        /// <returns><see langword="true"/> if <paramref name="d"/> is greater than or equal to 0 and less than <paramref
-        /// name="dim"/>; otherwise, <see langword="false"/>.</returns>
-        private static bool IsInRange(int d, int dim)
-        {
-            return d >= 0 && d < dim;
         }
 
         /// <summary>
@@ -69,24 +56,25 @@ namespace TutorialApp
                 //Compute array indexes
                 int y = myScopeIdx / srcArray.IntExtent.Y;
                 int x = myScopeIdx % srcArray.IntExtent.Y;
-                //Do the work
+                //Do the work (sum neighbors around the center element)
                 for (int i = -1; i <= 1; i++)
                 {
                     for(int j = -1; j <= 1; j++)
                     {
-                        if (IsInRange(y + i, srcArray.IntExtent.X) && IsInRange(x + j, srcArray.IntExtent.Y))
+                        if(i == 0 & j == 0)
+                            continue; //Skip the center element
+                        if (StaticUtils.IsInRange(y + i, srcArray.IntExtent.X) && StaticUtils.IsInRange(x + j, srcArray.IntExtent.Y))
                         {
                             dstArray[y, x] += srcArray[y + i, x + j];
                         }
                     }
                 }
-                dstArray[y, x] *= 2.0f;
             }
             return;
         }
 
         /// <summary>
-        /// This method uses a classical ILGPU computation pattern, which relies on the ILGPU
+        /// This method uses a classical ILGPU execution pattern, which relies on the ILGPU
         /// internal cache mechanism to load the kernel efficiently.
         /// </summary>
         private static float[,] DoClassicalPattern(Accelerator a, Index2D dataSize)
@@ -97,9 +85,9 @@ namespace TutorialApp
             srcArray.MemSet(128);
 
             //////////////////////////////////////////////////////
-            // The Classical pattern means to load kernel when needed relying on ILGPU internal cache mechanism.
-            // Unfortunately there must be an internal bug, because in the most situations, already
-            // known and compiled kernel is probably compiled again and again.
+            // The Classical pattern means to load kernel relying on ILGPU internal cache mechanism.
+            // Unfortunately there must be an internal bug because in most situations
+            // kernel seems to be compiled again and again.
             var kernel = a.LoadStreamKernel<ArrayView2D<byte, Stride2D.DenseY> , ArrayView2D<float, Stride2D.DenseY>>(GPUWorkChung);
             //////////////////////////////////////////////////////
 
@@ -114,11 +102,11 @@ namespace TutorialApp
         }
 
         /// <summary>
-        /// This method does exactly the same as DoClassicalPattern method
-        /// using GPUWrappedAccelerator instead of Accelerator.
-        /// The difference is only in utilizing the GPUWrappedAccelerator's
-        /// pinned cache of already compiled kernels, to prevent a probable
-        /// bug in the ILGPU internal cache mechanism.
+        /// This method does exactly the same as <see cref="AcceleratorExample.DoClassicalPattern"/> method
+        /// using <see cref="GPUWrappedAccelerator"/> instead of ILGPU Accelerator.
+        /// The difference is only in utilizing the cache of already compiled kernels to prevent
+        /// known bug in the ILGPU internal cache mechanism.
+        /// </summary>
         private static float[,] DoGPUWrappedAcceleratorPattern(GPUWrappedAccelerator a, Index2D dataSize)
         {
             float[,] result = new float[dataSize.X, dataSize.Y];
@@ -127,13 +115,13 @@ namespace TutorialApp
             srcArray.MemSet(128);
 
             //////////////////////////////////////////////////////
-            // The GPUWrappedAccelerator pattern means to load compiled kernel when needed
+            // The GPUWrappedAccelerator pattern means to load compiled kernel
             // using the accelerator's pinned cache of already compiled named kernels.
             // Cache is implemented as thread safe dictionary mapping kernel name to delegate.
             // So kernel name is used to identify the kernel in the cache and is up to you how
             // kernel name is constructed.
             // Good practice is to use full path to the kernel's code like here.
-            string kernelName = "TutorialApp.AcceleratorExample.GPUWorkChung";
+            string kernelName = $"{nameof(TutorialApp)}.{nameof(AcceleratorExample)}.{nameof(GPUWorkChung)}";
             var kernel = a.Kernels.GetOrAddKernel<Action<KernelConfig, ArrayView2D<byte, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>>>(
                             kernelName,
                             () => a.AccelObj.LoadStreamKernel<ArrayView2D<byte, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>>(GPUWorkChung)
@@ -159,7 +147,7 @@ namespace TutorialApp
         /// time for each is recorded and displayed.</remarks>
         public void Run()
         {
-            Stopwatch sw = new Stopwatch();
+            Stopwatch sw = new ();
             int repetitions = 1000;
             Index2D dataSize = new Index2D(128, 512);
 
@@ -181,21 +169,21 @@ namespace TutorialApp
                 }
             }
 
-            Console.WriteLine("Test of the Classical pattern started...");
+            Console.WriteLine("Classical pattern test started...");
             sw.Reset();
             sw.Start();
             PerformClassicalPatternTest();
             sw.Stop();
             long classicalPatternTime = sw.ElapsedMilliseconds;
-            Console.WriteLine($"    Test run took {classicalPatternTime} ms.");
+            Console.WriteLine($"  Execution took {classicalPatternTime} ms.");
             
-            Console.WriteLine("Test of the GPUWrappedAccelerator pattern started...");
+            Console.WriteLine("GPUWrappedAccelerator pattern test started...");
             sw.Reset();
             sw.Start();
             PerformGPUWrappedAcceleratorPatternTest();
             sw.Stop();
             long gpuWrappedAcceleratorPatternTime = sw.ElapsedMilliseconds;
-            Console.WriteLine($"    Test run took {gpuWrappedAcceleratorPatternTime} ms.");
+            Console.WriteLine($"  Execution took {gpuWrappedAcceleratorPatternTime} ms.");
             
             double ratio = Math.Round(classicalPatternTime >= gpuWrappedAcceleratorPatternTime ?
                                       (double)classicalPatternTime / (double)gpuWrappedAcceleratorPatternTime
@@ -204,7 +192,7 @@ namespace TutorialApp
                                       MidpointRounding.AwayFromZero
                                       );
             string result = classicalPatternTime >= gpuWrappedAcceleratorPatternTime ? "faster" : "slower";
-            Console.WriteLine($"Results is that the GPUWrappedAccelerator pattern is about {ratio} times {result} than the Classical pattern.");
+            Console.WriteLine($"Execution using the GPUWrappedAccelerator pattern is about {ratio} times {result} than execution using Classical pattern.");
 
             Console.WriteLine();
             Console.WriteLine();

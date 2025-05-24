@@ -1,15 +1,16 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
 
+using PPU4ILGPU;
 using TutorialApp;
 
 bool exit = false;
 while (!exit)
 {
     Console.WriteLine("Menu");
-    Console.WriteLine("1. GPUWrappedAccelerator with GPUKernelCache versus classical ILGPU LoadKernel approach");
-    Console.WriteLine("2. GPUAllocator usage");
-    Console.WriteLine("3. GPUStreamPool option");
+    Console.WriteLine($"1. {nameof(GPUWrappedAccelerator)} used as a standalone component");
+    Console.WriteLine($"2. {nameof(GPUAllocator)} singleton scenario");
+    Console.WriteLine($"3. {nameof(GPUStreamPool)} usage of non-default GPU streams");
     Console.WriteLine("4. Exit");
     Console.WriteLine("Press your choice...");
     ConsoleKeyInfo keyInfo = Console.ReadKey();
@@ -22,8 +23,16 @@ while (!exit)
             }
             break;
         case '2':
+            {
+                AllocatorExample example = new();
+                example.Run();
+            }
             break;
         case '3':
+            Console.WriteLine();
+            Console.WriteLine("Not implemented yet.");
+            Console.WriteLine("Press any key to continue...");
+            _ = Console.ReadKey();
             break;
         case '4':
             Console.WriteLine("Exiting...");

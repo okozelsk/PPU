@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.IO;
 
 namespace PPU4ILGPU
 {
@@ -30,21 +31,28 @@ namespace PPU4ILGPU
         /// <remarks>This method ensures that a kernel delegate is either retrieved from the cache or
         /// compiled and added to the cache in a thread-safe manner.</remarks>
         /// <typeparam name="T">The type of the delegate representing the kernel.</typeparam>
-        /// <param name="key">The unique key used to identify the kernel in the cache. Cannot be <see langword="null"/> or empty.</param>
+        /// <param name="kernelName">The unique key used to identify the kernel in the cache. Cannot be <see langword="null"/> or empty.</param>
         /// <param name="compileKernelFn">A function that compiles and returns the kernel delegate if it is not already cached.  This function is
-        /// invoked only when the kernel is not found in the cache.</param>
+        /// invoked only when the kernel is not found in the cache. Argument can not be null.</param>
         /// <returns>The kernel delegate of type <typeparamref name="T"/> associated with the specified key.  If the kernel was
         /// not already cached, the result of <paramref name="compileKernelFn"/> is cached and returned.</returns>
-        public T GetOrAddKernel<T>(string key, Func<T> compileKernelFn) where T : Delegate
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        public T GetOrAddKernel<T>(string kernelName, Func<T> compileKernelFn) where T : Delegate
         {
-            if (_cache.TryGetValue(key, out Delegate? cachedKernel))
+            if (string.IsNullOrEmpty(kernelName))
+            {
+                throw new ArgumentException("Kernel name cannot be null or empty.", nameof(kernelName));
+            }
+            ArgumentNullException.ThrowIfNull(compileKernelFn);
+            if (_cache.TryGetValue(kernelName, out Delegate? cachedKernel))
             {
                 return (T)cachedKernel;
             }
             else
             {
                 T kernel = compileKernelFn();
-                _cache[key] = kernel;
+                _cache[kernelName] = kernel;
                 return kernel;
             }
         }
