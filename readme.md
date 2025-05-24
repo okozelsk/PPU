@@ -8,8 +8,8 @@ Repository consists of the main library (**PPU4ILGPU**) and a small console appl
 
 ## Dependencies
 
-- [ILGPU](https://www.nuget.org/packages/ILGPU) (verze 1.5.2)
-- [ILGPU.Algorithms](https://www.nuget.org/packages/ILGPU.Algorithms) (verze 1.5.2)
+- [ILGPU](https://www.nuget.org/packages/ILGPU) (version 1.5.2)
+- [ILGPU.Algorithms](https://www.nuget.org/packages/ILGPU.Algorithms) (version 1.5.2)
 
 <br />
 
