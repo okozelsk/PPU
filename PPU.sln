@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36121.58
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PPU4ILGPU", "PPU4ILGPU\PPU4ILGPU.csproj", "{361CE2EF-5D80-2E44-0B4A-ED3F7D02FFBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TutorialApp", "TutorialApp\TutorialApp.csproj", "{713D56C0-AC90-489F-1E46-03C52FB935C8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Položky řešení", "Položky řešení", "{73E6DEBC-5D85-E032-7380-14D1E53616C6}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{361CE2EF-5D80-2E44-0B4A-ED3F7D02FFBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{361CE2EF-5D80-2E44-0B4A-ED3F7D02FFBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{361CE2EF-5D80-2E44-0B4A-ED3F7D02FFBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{361CE2EF-5D80-2E44-0B4A-ED3F7D02FFBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{713D56C0-AC90-489F-1E46-03C52FB935C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{713D56C0-AC90-489F-1E46-03C52FB935C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{713D56C0-AC90-489F-1E46-03C52FB935C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{713D56C0-AC90-489F-1E46-03C52FB935C8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {48220FA8-C534-464B-A9AD-D111B5C6C978}
+	EndGlobalSection
+EndGlobal
