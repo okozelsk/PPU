@@ -29,10 +29,10 @@ while (!exit)
             }
             break;
         case '3':
-            Console.WriteLine();
-            Console.WriteLine("Not implemented yet.");
-            Console.WriteLine("Press any key to continue...");
-            _ = Console.ReadKey();
+            {
+                AllocatorNDStreamExample example = new();
+                example.Run();
+            }
             break;
         case '4':
             Console.WriteLine("Exiting...");

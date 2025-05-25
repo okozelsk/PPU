@@ -15,24 +15,26 @@ namespace TutorialApp
 {
     /// <summary>
     /// Demonstrates the use of GPU and CPU parallel processing for neighbor summation in 2D arrays.
+    /// Does exactly the same as <see cref="AllocatorExample"/>, but uses <see cref="GPUStreamPool"/> 
+    /// thus each thread uses its own stream for GPU operations.
     /// </summary>
     /// <remarks>The <see cref="AllocatorExample"/> class initializes large and small 2D arrays of random
     /// float values and provides functionality to compute the sum of neighboring elements for each element in the
     /// arrays. It leverages both CPU and GPU resources for parallel processing, depending on the current mode of the
     /// <see cref="GPUAllocator"/> singleton. The class also demonstrates switching between different GPU allocation
     /// modes and measuring performance.</remarks>
-    public class AllocatorExample
+    public class AllocatorNDStreamExample
     {
         private readonly float[,] _big2DArrayOfFloats;
         private readonly float[,] _small2DArrayOfFloats;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="AllocatorExample"/> class.
+        /// Initializes a new instance of the <see cref="AllocatorNDStreamExample"/> class.
         /// </summary>
         /// <remarks>This constructor initializes two 2D arrays of random float values for example
         /// purposes:  a large array with dimensions 10,000 x 15,000 and a smaller array with dimensions 128 x 512.  The
         /// arrays are populated with random float values between 0.0 and 1.0.</remarks>
-        public AllocatorExample()
+        public AllocatorNDStreamExample()
         {
             Console.Clear();
             Random rand = new();
@@ -164,27 +166,32 @@ namespace TutorialApp
             {
                 // GPU is available, use it for processing
                 Console.WriteLine($"[{threadName}] started processing on device {a.AccelObj.Device.Name}...");
+                //Acquire a stream from the pool for GPU operations
+                AcceleratorStream stream = a.StreamPool.Acquire();
                 //Lock the accelerator to ensure thread safety
                 lock (a.ThreadLock)
                 {
                     //Allocate memory on the GPU for input and output arrays
-                    using MemoryBuffer2D<float, Stride2D.DenseY> srcArray = a.AccelObj.Allocate2DDenseY<float>(input);
-                    using MemoryBuffer2D<float, Stride2D.DenseY> dstArray = a.AccelObj.Allocate2DDenseY<float>(srcArray.IntExtent);
+                    using MemoryBuffer2D<float, Stride2D.DenseY> srcArray = a.AccelObj.Allocate2DDenseY<float>(stream, input);
+                    using MemoryBuffer2D<float, Stride2D.DenseY> dstArray = a.AccelObj.Allocate2DDenseY<float>(srcArray.Extent);
                     //Load the GPU kernel using the cache on acquired GPUWrappedAccelerator instance
-                    string kernelName = $"{nameof(TutorialApp)}.{nameof(AllocatorExample)}.{nameof(NeighborSum)}.{nameof(GPUWorkChung)}";
-                    var kernel = a.Kernels.GetOrAddKernel<Action<KernelConfig, ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>, int>>(
+                    string kernelName = $"{nameof(TutorialApp)}.{nameof(AllocatorNDStreamExample)}.{nameof(NeighborSum)}.{nameof(GPUWorkChung)}";
+                    var kernel = a.Kernels.GetOrAddKernel<Action<AcceleratorStream, KernelConfig, ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>, int>>(
                                     kernelName,
-                                    () => a.AccelObj.LoadStreamKernel<ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>, int>(GPUWorkChung)
+                                    () => a.AccelObj.LoadKernel<ArrayView2D<float, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>, int>(GPUWorkChung)
                                     );
                     //Execute the kernel with the grid and group dimensions set for grid-stride-loop
-                    kernel(a.GetKernelConfig(srcArray.Length, true),
+                    kernel(stream,
+                           a.GetKernelConfig(srcArray.Length, true),
                            srcArray.View,
                            dstArray.View,
                            radius
                            );
-                    a.AccelObj.Synchronize();
-                    dstArray.CopyToCPU(result);
+                    stream.Synchronize();
+                    dstArray.CopyToCPU(stream, result);
                 }
+                //Work is done, so release the stream back to the pool
+                a.StreamPool.Release(stream);
                 //Release back acquired GPU accelerator
                 GPU.Allocator.Release(a);
             }
