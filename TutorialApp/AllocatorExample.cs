@@ -29,15 +29,13 @@ namespace TutorialApp
         /// <summary>
         /// Initializes a new instance of the <see cref="AllocatorExample"/> class.
         /// </summary>
-        /// <remarks>This constructor initializes two 2D arrays of random float values for example
-        /// purposes:  a large array with dimensions 10,000 x 15,000 and a smaller array with dimensions 128 x 512.  The
-        /// arrays are populated with random float values between 0.0 and 1.0.</remarks>
+        /// <remarks>This constructor initializes two 2D arrays
+        /// populated with random float values between 0.0 and 1.0.</remarks>
         public AllocatorExample()
         {
             Console.Clear();
             Random rand = new();
-            Console.WriteLine("Initializing big 2D array of random float values for example purposes...");
-            _big2DArrayOfFloats = new float[10000, 15000];
+            _big2DArrayOfFloats = new float[1080, 1920];
             for (int i = 0; i < _big2DArrayOfFloats.GetLength(0); i++)
             {
                 for (int j = 0; j < _big2DArrayOfFloats.GetLength(1); j++)
@@ -45,14 +43,18 @@ namespace TutorialApp
                     _big2DArrayOfFloats[i, j] = (float)rand.NextDouble();
                 }
             }
-            Console.WriteLine("Initializing small 2D array of random float values for example purposes...");
-            _small2DArrayOfFloats = new float[128, 512];
+            _small2DArrayOfFloats = new float[600, 800];
             for (int i = 0; i < _small2DArrayOfFloats.GetLength(0); i++)
             {
                 for (int j = 0; j < _small2DArrayOfFloats.GetLength(1); j++)
                 {
                     _small2DArrayOfFloats[i, j] = (float)rand.NextDouble();
                 }
+            }
+            Console.WriteLine("Available GPUs");
+            foreach (var wa in GPU.Allocator.GetAvailableGPUs())
+            {
+                Console.WriteLine($"- {wa.AccelObj.Device.Name} ({wa.AccelObj.Device.AcceleratorType})");
             }
             Console.WriteLine();
         }
@@ -220,12 +222,12 @@ namespace TutorialApp
             sw.Start();
             // Execute the neighbor sum calculations in parallel
             Parallel.Invoke(
-                () => { resultT1 = NeighborSum("T1 big", _big2DArrayOfFloats); },
-                () => { resultT2 = NeighborSum("T2 small", _small2DArrayOfFloats); },
-                () => { resultT3 = NeighborSum("T3 small", _small2DArrayOfFloats); },
-                () => { resultT4 = NeighborSum("T4 small", _small2DArrayOfFloats); },
-                () => { resultT5 = NeighborSum("T5 small", _small2DArrayOfFloats); },
-                () => { resultT6 = NeighborSum("T6 small", _small2DArrayOfFloats); }
+                () => { resultT1 = NeighborSum($"T1 {_big2DArrayOfFloats.GetLength(0)}x{_big2DArrayOfFloats.GetLength(1)}", _big2DArrayOfFloats); },
+                () => { resultT2 = NeighborSum($"T2 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
+                () => { resultT3 = NeighborSum($"T3 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
+                () => { resultT4 = NeighborSum($"T4 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
+                () => { resultT5 = NeighborSum($"T5 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
+                () => { resultT6 = NeighborSum($"T6 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); }
                 );
             // Stop measuring time
             sw.Stop();

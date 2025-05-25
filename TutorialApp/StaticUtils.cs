@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 namespace TutorialApp
 {
     /// <summary>
-    /// Provides utility methods.
+    /// Provides static utility methods.
     /// </summary>
-    /// <remarks>This class contains static helper methods that can be used without instantiating an object.
-    /// It is designed for general-purpose utility functions.</remarks>
     public static class StaticUtils
     {
         /// <summary>
