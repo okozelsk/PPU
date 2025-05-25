@@ -8,6 +8,9 @@ Repository consists of the main library (**PPU4ILGPU**) and a small console appl
 PPU4ILGPU is available as a NuGet package https://www.nuget.org/packages/PPU4ILGPU
 <br />
 
+## PPU4ILGPU class hierarchy
+![Class hierarchy](./PPU4ILGPU.png)
+
 ## Dependencies
 
 - [ILGPU](https://www.nuget.org/packages/ILGPU) (version 1.5.2)
