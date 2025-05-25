@@ -4,6 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>PPU4ILGPU</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>okozelsk</Authors>
+    <Description>Library of parallel processing utils for ILGPU. Offers thread-safe balanced utilization of all available GPU devices on host machine and fast loading of once compiled GPU kernels.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/okozelsk/PPU</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

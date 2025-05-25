@@ -4,6 +4,8 @@
 - fast loading of GPU kernels
 
 Repository consists of the main library (**PPU4ILGPU**) and a small console application (**TutorialApp**), where it is shown in the form of examples how to use the library.
+
+PPU4ILGPU is available as a NuGet package https://www.nuget.org/packages/PPU4ILGPU
 <br />
 
 ## Dependencies
