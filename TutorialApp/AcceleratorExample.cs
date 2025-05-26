@@ -77,19 +77,22 @@ namespace TutorialApp
         /// This method uses a classical ILGPU execution pattern, which relies on the ILGPU
         /// internal cache mechanism to load the kernel efficiently.
         /// </summary>
-        private static float[,] DoClassicalPattern(Accelerator a, Index2D dataSize)
+        private static (long, float[,]) DoClassicalPattern(Accelerator a, Index2D dataSize, Stopwatch sw)
         {
             float[,] result = new float[dataSize.X, dataSize.Y];
             using MemoryBuffer2D<byte, Stride2D.DenseY> srcArray = a.Allocate2DDenseY<byte>(dataSize);
             using MemoryBuffer2D<float, Stride2D.DenseY> dstArray = a.Allocate2DDenseY<float>(dataSize);
             srcArray.MemSet(128);
 
+            sw.Reset();
+            sw.Start();
             //////////////////////////////////////////////////////
             // The Classical pattern means to load kernel relying on ILGPU internal cache mechanism.
             // Unfortunately there must be an internal bug because in most situations
             // kernel seems to be compiled again and again.
             var kernel = a.LoadStreamKernel<ArrayView2D<byte, Stride2D.DenseY> , ArrayView2D<float, Stride2D.DenseY>>(GPUWorkChung);
             //////////////////////////////////////////////////////
+            sw.Stop();
 
             //Execute the kernel with the specified grid and group dimensions.
             kernel(new KernelConfig(a.MaxNumGroupsExtent.Item1, a.MaxNumGroupsExtent.Item2),
@@ -98,7 +101,7 @@ namespace TutorialApp
                     );
             a.Synchronize();
             dstArray.CopyToCPU(result);
-            return result;
+            return (sw.ElapsedMilliseconds, result);
         }
 
         /// <summary>
@@ -107,13 +110,15 @@ namespace TutorialApp
         /// The difference is only in utilizing the cache of already compiled kernels to prevent
         /// known bug in the ILGPU internal cache mechanism.
         /// </summary>
-        private static float[,] DoGPUWrappedAcceleratorPattern(GPUWrappedAccelerator a, Index2D dataSize)
+        private static (long, float[,]) DoGPUWrappedAcceleratorPattern(GPUWrappedAccelerator a, Index2D dataSize, Stopwatch sw)
         {
             float[,] result = new float[dataSize.X, dataSize.Y];
             using MemoryBuffer2D<byte, Stride2D.DenseY> srcArray = a.AccelObj.Allocate2DDenseY<byte>(dataSize);
             using MemoryBuffer2D<float, Stride2D.DenseY> dstArray = a.AccelObj.Allocate2DDenseY<float>(dataSize);
             srcArray.MemSet(128);
 
+            sw.Reset();
+            sw.Start();
             //////////////////////////////////////////////////////
             // The GPUWrappedAccelerator pattern means to load compiled kernel
             // using the accelerator's pinned cache of already compiled named kernels.
@@ -127,6 +132,7 @@ namespace TutorialApp
                             () => a.AccelObj.LoadStreamKernel<ArrayView2D<byte, Stride2D.DenseY>, ArrayView2D<float, Stride2D.DenseY>>(GPUWorkChung)
                             );
             ///////////////////////////////////////////////////////
+            sw.Stop();
 
             //Execute the kernel with the specified grid and group dimensions.
             kernel(a.GetKernelConfig(srcArray.Length, true),
@@ -135,7 +141,7 @@ namespace TutorialApp
                    );
             a.AccelObj.Synchronize();
             dstArray.CopyToCPU(result);
-            return result;
+            return (sw.ElapsedMilliseconds, result);
         }
 
         /// <summary>
@@ -151,39 +157,39 @@ namespace TutorialApp
             int repetitions = 1000;
             Index2D dataSize = new Index2D(128, 512);
 
-            void PerformClassicalPatternTest()
+            long PerformClassicalPatternTest()
             {
                 using Accelerator accelerator = _device.CreateAccelerator(_context);
+                long sumMilliseconds = 0;
                 for (int i = 0; i < repetitions; i++)
                 {
-                    _ = DoClassicalPattern(accelerator, dataSize);
+                    long elapsedMilliseconds = 0;
+                    (elapsedMilliseconds, _) = DoClassicalPattern(accelerator, dataSize, sw);
+                    sumMilliseconds += elapsedMilliseconds;
                 }
+                return sumMilliseconds;
             }
 
-            void PerformGPUWrappedAcceleratorPatternTest()
+            long PerformGPUWrappedAcceleratorPatternTest()
             {
                 using GPUWrappedAccelerator accelerator = new(_context, _device);
+                long sumMilliseconds = 0;
                 for (int i = 0; i < repetitions; i++)
                 {
-                    _ = DoGPUWrappedAcceleratorPattern(accelerator, dataSize);
+                    long elapsedMilliseconds = 0;
+                    (elapsedMilliseconds, _) = DoGPUWrappedAcceleratorPattern(accelerator, dataSize, sw);
+                    sumMilliseconds += elapsedMilliseconds;
                 }
+                return sumMilliseconds;
             }
 
-            Console.WriteLine("Classical pattern test started...");
-            sw.Reset();
-            sw.Start();
-            PerformClassicalPatternTest();
-            sw.Stop();
-            long classicalPatternTime = sw.ElapsedMilliseconds;
-            Console.WriteLine($"  Execution took {classicalPatternTime} ms.");
-            
             Console.WriteLine("GPUWrappedAccelerator pattern test started...");
-            sw.Reset();
-            sw.Start();
-            PerformGPUWrappedAcceleratorPatternTest();
-            sw.Stop();
-            long gpuWrappedAcceleratorPatternTime = sw.ElapsedMilliseconds;
+            long gpuWrappedAcceleratorPatternTime = PerformGPUWrappedAcceleratorPatternTest();
             Console.WriteLine($"  Execution took {gpuWrappedAcceleratorPatternTime} ms.");
+
+            Console.WriteLine("Classical pattern test started...");
+            long classicalPatternTime = PerformClassicalPatternTest();
+            Console.WriteLine($"  Execution took {classicalPatternTime} ms.");
             
             double ratio = Math.Round(classicalPatternTime >= gpuWrappedAcceleratorPatternTime ?
                                       (double)classicalPatternTime / (double)gpuWrappedAcceleratorPatternTime
@@ -192,7 +198,7 @@ namespace TutorialApp
                                       MidpointRounding.AwayFromZero
                                       );
             string result = classicalPatternTime >= gpuWrappedAcceleratorPatternTime ? "faster" : "slower";
-            Console.WriteLine($"Execution using the GPUWrappedAccelerator pattern is about {ratio} times {result} than execution using Classical pattern.");
+            Console.WriteLine($"Using the GPUWrappedAccelerator pattern to load kernel is about {ratio} times {result} than when using Classical pattern.");
 
             Console.WriteLine();
             Console.WriteLine();

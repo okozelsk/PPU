@@ -14,41 +14,48 @@ using System.Threading.Tasks;
 namespace TutorialApp
 {
     /// <summary>
-    /// Demonstrates the use of GPU and CPU parallel processing for neighbor summation in 2D arrays.
+    /// Demonstrates the use of GPU and CPU parallel processing for neighbor summation in six 2D arrays
+    /// using different GPU allocation modes and measuring performance.
+    /// GPU processing uses the default stream on particular GPU accelerator.
     /// </summary>
-    /// <remarks>The <see cref="AllocatorExample"/> class initializes large and small 2D arrays of random
-    /// float values and provides functionality to compute the sum of neighboring elements for each element in the
-    /// arrays. It leverages both CPU and GPU resources for parallel processing, depending on the current mode of the
-    /// <see cref="GPUAllocator"/> singleton. The class also demonstrates switching between different GPU allocation
-    /// modes and measuring performance.</remarks>
     public class AllocatorExample
     {
-        private readonly float[,] _big2DArrayOfFloats;
-        private readonly float[,] _small2DArrayOfFloats;
+        private readonly float[,] _2DArrayOfFloats1;
+        private readonly float[,] _2DArrayOfFloats2;
+        private readonly float[,] _2DArrayOfFloats3;
+        private readonly float[,] _2DArrayOfFloats4;
+        private readonly float[,] _2DArrayOfFloats5;
+        private readonly float[,] _2DArrayOfFloats6;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AllocatorExample"/> class.
         /// </summary>
-        /// <remarks>This constructor initializes two 2D arrays
-        /// populated with random float values between 0.0 and 1.0.</remarks>
+        /// <remarks>This constructor initializes six 2D arrays
+        /// populated with random float values between 0.0 and 1.0.
+        /// Constructor also reports available
+        /// GPUs on host machine (for information only).</remarks>
         public AllocatorExample()
         {
             Console.Clear();
             Random rand = new();
-            _big2DArrayOfFloats = new float[1080, 1920];
-            for (int i = 0; i < _big2DArrayOfFloats.GetLength(0); i++)
+            int height = 600;
+            int width = 800;
+            _2DArrayOfFloats1 = new float[height, width];
+            _2DArrayOfFloats2 = new float[height, width];
+            _2DArrayOfFloats3 = new float[height, width];
+            _2DArrayOfFloats4 = new float[height, width];
+            _2DArrayOfFloats5 = new float[height, width];
+            _2DArrayOfFloats6 = new float[height, width];
+            for (int i = 0; i < height; i++)
             {
-                for (int j = 0; j < _big2DArrayOfFloats.GetLength(1); j++)
+                for (int j = 0; j < width; j++)
                 {
-                    _big2DArrayOfFloats[i, j] = (float)rand.NextDouble();
-                }
-            }
-            _small2DArrayOfFloats = new float[600, 800];
-            for (int i = 0; i < _small2DArrayOfFloats.GetLength(0); i++)
-            {
-                for (int j = 0; j < _small2DArrayOfFloats.GetLength(1); j++)
-                {
-                    _small2DArrayOfFloats[i, j] = (float)rand.NextDouble();
+                    _2DArrayOfFloats1[i, j] = (float)rand.NextDouble();
+                    _2DArrayOfFloats2[i, j] = (float)rand.NextDouble();
+                    _2DArrayOfFloats3[i, j] = (float)rand.NextDouble();
+                    _2DArrayOfFloats4[i, j] = (float)rand.NextDouble();
+                    _2DArrayOfFloats5[i, j] = (float)rand.NextDouble();
+                    _2DArrayOfFloats6[i, j] = (float)rand.NextDouble();
                 }
             }
             Console.WriteLine("Available GPUs");
@@ -66,7 +73,7 @@ namespace TutorialApp
         /// <remarks>This method processes the input array using either CPU or GPU resources, depending on
         /// availability.  If a GPU is available, the computation is offloaded to the GPU for improved performance.
         /// Otherwise,  the computation is performed on the CPU using parallel processing.  The radius for neighbor
-        /// summation is fixed at 5. Neighboring elements are considered only if they  fall within the bounds of the
+        /// summation is fixed at 5. Neighboring elements are considered only if they fall within the bounds of the
         /// input array.  The method is thread-safe and can be used in multi-threaded environments.</remarks>
         /// <param name="threadName">The name of the thread or task performing the operation, used for logging purposes.</param>
         /// <param name="input">A 2D array of floating-point numbers representing the input data. Must not be null.</param>
@@ -198,20 +205,11 @@ namespace TutorialApp
 
         /// <summary>
         /// Executes a sequence of six parallel operations, each performing a neighbor sum calculation on specified 2D
-        /// arrays of floating-point numbers. One operation is performed on a large array, while the other five
-        /// on small array.
+        /// array of floating-point numbers.
         /// </summary>
         /// <remarks>This method utilizes <see cref="System.Threading.Tasks.Parallel.Invoke"/> to execute
         /// multiple neighbor sum calculations concurrently. The results of these calculations are returned as a tuple
         /// of six 2D arrays.</remarks>
-        /// <returns>A tuple containing six 2D arrays of floating-point numbers, where each array represents the result of a
-        /// neighbor sum calculation performed in parallel. The arrays are returned in the following order: <list
-        /// type="number"> <item><description>Result of the "T1 big" neighbor sum calculation.</description></item>
-        /// <item><description>Result of the "T2 small" neighbor sum calculation.</description></item>
-        /// <item><description>Result of the "T3 small" neighbor sum calculation.</description></item>
-        /// <item><description>Result of the "T4 small" neighbor sum calculation.</description></item>
-        /// <item><description>Result of the "T5 small" neighbor sum calculation.</description></item>
-        /// <item><description>Result of the "T6 small" neighbor sum calculation.</description></item> </list></returns>
         private (float[,], float[,], float[,], float[,], float[,], float[,]) ExecuteParallelSequence()
         {
             Stopwatch sw = new();
@@ -222,12 +220,12 @@ namespace TutorialApp
             sw.Start();
             // Execute the neighbor sum calculations in parallel
             Parallel.Invoke(
-                () => { resultT1 = NeighborSum($"T1 {_big2DArrayOfFloats.GetLength(0)}x{_big2DArrayOfFloats.GetLength(1)}", _big2DArrayOfFloats); },
-                () => { resultT2 = NeighborSum($"T2 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
-                () => { resultT3 = NeighborSum($"T3 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
-                () => { resultT4 = NeighborSum($"T4 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
-                () => { resultT5 = NeighborSum($"T5 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); },
-                () => { resultT6 = NeighborSum($"T6 {_small2DArrayOfFloats.GetLength(0)}x{_small2DArrayOfFloats.GetLength(1)}", _small2DArrayOfFloats); }
+                () => { resultT1 = NeighborSum($"T1", _2DArrayOfFloats1); },
+                () => { resultT2 = NeighborSum($"T2", _2DArrayOfFloats2); },
+                () => { resultT3 = NeighborSum($"T3", _2DArrayOfFloats3); },
+                () => { resultT4 = NeighborSum($"T4", _2DArrayOfFloats4); },
+                () => { resultT5 = NeighborSum($"T5", _2DArrayOfFloats5); },
+                () => { resultT6 = NeighborSum($"T6", _2DArrayOfFloats6); }
                 );
             // Stop measuring time
             sw.Stop();
@@ -236,11 +234,11 @@ namespace TutorialApp
         }
 
         /// <summary>
-        /// Executes a series of parallel operations using different GPU allocation modes.
+        /// Executes a series of parallel calculations using different GPU allocation modes.
         /// </summary>
         /// <remarks>This method sequentially sets the GPU allocation mode to various configurations 
-        /// (NoAccelerator, MostPowerfulGPU, LeastPowerfulGPU, and Standard) and executes  parallel operations for each
-        /// mode.</remarks>
+        /// (NoAccelerator, MostPowerfulGPU, LeastPowerfulGPU and Standard) and executes parallel
+        /// calculations for each mode.</remarks>
         public void Run()
         {
             //Set the GPU allocation mode to NoAccelerator to force CPU processing
