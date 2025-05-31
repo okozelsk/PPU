@@ -7,13 +7,19 @@ using TutorialApp;
 bool exit = false;
 while (!exit)
 {
-    Console.WriteLine("Menu");
+    Console.WriteLine();
+    Console.WriteLine();
+    Console.WriteLine();
+    Console.WriteLine("Main menu");
+    Console.WriteLine("---------");
     Console.WriteLine($"1. {nameof(GPUWrappedAccelerator)} used as a standalone component");
     Console.WriteLine($"2. {nameof(GPUAllocator)} singleton scenario");
     Console.WriteLine($"3. {nameof(GPUStreamPool)} usage of non-default GPU streams");
     Console.WriteLine("4. Exit");
-    Console.WriteLine("Press your choice...");
+    Console.WriteLine("Select your choice (press key 1, 2, 3 or 4)...");
     ConsoleKeyInfo keyInfo = Console.ReadKey();
+    Console.WriteLine();
+    Console.WriteLine();
     switch (keyInfo.KeyChar)
     {
         case '1':
@@ -39,7 +45,14 @@ while (!exit)
             exit = true;
             break;
         default:
+            Console.WriteLine("Unsupported choice.");
             break;
     }
-    Console.Clear();
+    Console.WriteLine();
+    Console.WriteLine();
+    if (!exit)
+    {
+        Console.WriteLine("Press any key to return to main menu...");
+        Console.ReadKey();
+    }
 }

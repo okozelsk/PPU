@@ -26,7 +26,9 @@ namespace TutorialApp
         /// disposed.</remarks>
         public AcceleratorExample()
         {
-            Console.Clear();
+            Console.WriteLine("*******************");
+            Console.WriteLine("* Example started *");
+            Console.WriteLine("*******************");
             Console.WriteLine("Initializing ILGPU context...");
             _context = Context.CreateDefault();
             Console.WriteLine("Context object obtained");
@@ -38,7 +40,7 @@ namespace TutorialApp
         }
 
         /// <summary>
-        /// Nothing special. Performs a grid-stride loop operation on a 2D source array, applying a neighborhood-based computation and
+        /// Does nothing special. Performs a grid-stride loop operation on a 2D source array, applying a neighborhood-based computation and
         /// storing the results in a 2D destination array.
         /// </summary>
         /// <param name="srcArray">The 2D source array of bytes. Each element represents the input data for the computation.</param>
@@ -185,11 +187,11 @@ namespace TutorialApp
 
             Console.WriteLine("GPUWrappedAccelerator pattern test started...");
             long gpuWrappedAcceleratorPatternTime = PerformGPUWrappedAcceleratorPatternTest();
-            Console.WriteLine($"  Execution took {gpuWrappedAcceleratorPatternTime} ms.");
+            Console.WriteLine($"  Load kernel calls took {gpuWrappedAcceleratorPatternTime} ms.");
 
             Console.WriteLine("Classical pattern test started...");
             long classicalPatternTime = PerformClassicalPatternTest();
-            Console.WriteLine($"  Execution took {classicalPatternTime} ms.");
+            Console.WriteLine($"  Load kernel calls took {classicalPatternTime} ms.");
             
             double ratio = Math.Round(classicalPatternTime >= gpuWrappedAcceleratorPatternTime ?
                                       (double)classicalPatternTime / (double)gpuWrappedAcceleratorPatternTime
@@ -200,10 +202,6 @@ namespace TutorialApp
             string result = classicalPatternTime >= gpuWrappedAcceleratorPatternTime ? "faster" : "slower";
             Console.WriteLine($"Using the GPUWrappedAccelerator pattern to load kernel is about {ratio} times {result} than when using Classical pattern.");
 
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
             return;
         }
 
@@ -222,7 +220,6 @@ namespace TutorialApp
                 _isDisposed = true;
                 if (disposing)
                 {
-                    Console.WriteLine("Disposing ILGPU context...");
                     _context.Dispose();
                 }
             }

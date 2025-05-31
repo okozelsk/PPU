@@ -37,7 +37,9 @@ namespace TutorialApp
         /// GPUs on host machine (for information only).</remarks>
         public AllocatorNDStreamExample()
         {
-            Console.Clear();
+            Console.WriteLine("*******************");
+            Console.WriteLine("* Example started *");
+            Console.WriteLine("*******************");
             Random rand = new();
             int height = 600;
             int width = 800;
@@ -268,10 +270,6 @@ namespace TutorialApp
             // Execute the parallel sequence
             _ = ExecuteParallelSequence();
 
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
             return;
         }
 
