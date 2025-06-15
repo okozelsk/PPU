@@ -62,19 +62,21 @@ namespace PPU4ILGPU
         }
 
         /// <summary>
-        /// Represents a pairing of a GPU accelerator with the number of jobs currently booked on it.
+        /// Holds runtime information about a GPU accelerator, including the number of jobs booked and whether it is reserved for exclusive use.
         /// </summary>
-        /// <remarks>This class is used to track the association between a GPU accelerator and the number
-        /// of jobs assigned to it. It provides properties to access the accelerator and manage the job count.</remarks>
-        private class AccelJobsPair
+        /// <remarks>This class is used internally to track the state of a GPU accelerator, including the
+        /// number of jobs currently booked and whether the accelerator is reserved for exclusive use.</remarks>
+        private class AccelRTI
         {
             internal GPUWrappedAccelerator WrappedAccel { get; }
             internal int NumOfBookedJobs { get; set; }
+            internal bool Reserved { get; set; }
 
-            internal AccelJobsPair(GPUWrappedAccelerator wrappedAccel)
+            internal AccelRTI(GPUWrappedAccelerator wrappedAccel)
             {
                 WrappedAccel = wrappedAccel;
                 NumOfBookedJobs = 0;
+                Reserved = false;
             }
 
         }
@@ -93,8 +95,8 @@ namespace PPU4ILGPU
         private readonly object _syncRoot;
         private Mode _mode;
         private readonly Context _context;
-        private readonly List<AccelJobsPair> _GPUs;
-        private readonly AccelJobsPair? _CPU;
+        private readonly List<AccelRTI> _GPUs;
+        private readonly AccelRTI? _CPU;
         private int _isDisposed;
 
         /// <summary>
@@ -184,7 +186,77 @@ namespace PPU4ILGPU
         public List<GPUWrappedAccelerator> GetAvailableGPUs()
         {
             ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
-            return _GPUs.Select(x => x.WrappedAccel).ToList();
+            lock (_syncRoot)
+            {
+                // Return a list of available GPUs that are not reserved
+                return [.. from item in _GPUs where !item.Reserved select item.WrappedAccel];
+            }
+        }
+
+        private List<AccelRTI> GetAvailableAccelRTIs()
+        {
+            // Return a list of AccelRTI that are not reserved
+            return [.. from item in _GPUs where !item.Reserved select item];
+        }
+
+        /// <summary>
+        /// Attempts to reserve the specified GPU accelerator for long-term exclusive use.
+        /// </summary>
+        /// <remarks>This method is thread-safe and ensures that only one thread can reserve a GPU
+        /// accelerator at a time.</remarks>
+        /// <param name="accel">The GPU accelerator to reserve. Must be an instance of <see cref="GPUWrappedAccelerator"/> that exists in
+        /// the list of available GPU accelerators.</param>
+        /// <returns><see langword="true"/> if the GPU accelerator was successfully reserved;  otherwise, <see langword="false"/>
+        /// if the GPU accelerator was already reserved.</returns>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="accel"/> is not found in the list of available GPU accelerators.</exception>
+        public bool ReserveGPU(GPUWrappedAccelerator accel)
+        {
+            ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+            lock (_syncRoot)
+            {
+                int idx = _GPUs.FindIndex(x => x.WrappedAccel == accel);
+                if (idx < 0)
+                {
+                    // GPU accelerator not found
+                    throw new ArgumentException("GPU accelerator not found in the list of GPU accelerators.", nameof(accel));
+                }
+                if (_GPUs[idx].Reserved)
+                {
+                    // Already reserved
+                    return false;
+                }
+                _GPUs[idx].Reserved = true;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Releases the reservation on the specified GPU accelerator, if it is currently reserved.
+        /// </summary>
+        /// <remarks>This method ensures thread safety by locking access to the internal GPU list during
+        /// the operation.</remarks>
+        /// <param name="accel">The GPU accelerator to release the reservation for.</param>
+        /// <returns><see langword="true"/> if the reservation was successfully released; otherwise, <see langword="false"/> if
+        /// the GPU accelerator was not reserved.</returns>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="accel"/> is not found in the list of GPU accelerators.</exception>
+        public bool ReleaseReservedGPU(GPUWrappedAccelerator accel)
+        {
+            ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+            lock (_syncRoot)
+            {
+                int idx = _GPUs.FindIndex(x => x.WrappedAccel == accel);
+                if (idx < 0)
+                {
+                    // GPU accelerator not found
+                    throw new ArgumentException("GPU accelerator not found in the list of GPU accelerators.", nameof(accel));
+                }
+                if (!_GPUs[idx].Reserved)
+                {
+                    return false; // Not reserved
+                }
+                _GPUs[idx].Reserved = false;
+                return true;
+            }
         }
 
         private void IncNumOfBookedJobs()
@@ -228,7 +300,10 @@ namespace PPU4ILGPU
                     }
                     return _CPU?.WrappedAccel;
                 }
-                else if (_GPUs.Count == 0)
+                //Get available GPU accelerators
+                List<AccelRTI> availableAccels = GetAvailableAccelRTIs();
+                // If no accelerators are available, return null
+                if (availableAccels.Count == 0)
                 {
                     // No GPU accelerators available
                     return null;
@@ -241,17 +316,17 @@ namespace PPU4ILGPU
                 }
                 else if (_mode == Mode.LeastPowerfulGPU)
                 {
-                    idx = _GPUs.Count - 1;
+                    idx = availableAccels.Count - 1;
                 }
                 else
                 {
                     // Standard mode
                     int minNumOfBookedJobs = int.MaxValue;
-                    // Find the GPU with the minimum number of booked jobs
+                    // Find the available GPU with the minimum number of booked jobs
                     // and if there are multiple ones, select the one with the highest power score
-                    for (int i = 0; i < _GPUs.Count; i++)
+                    for (int i = 0; i < availableAccels.Count; i++)
                     {
-                        int numOfBookedJobs = _GPUs[i].NumOfBookedJobs;
+                        int numOfBookedJobs = availableAccels[i].NumOfBookedJobs;
                         if (numOfBookedJobs < minNumOfBookedJobs)
                         {
                             minNumOfBookedJobs = numOfBookedJobs;
@@ -260,8 +335,8 @@ namespace PPU4ILGPU
                     }
                 }
                 // Return the selected accelerator
-                GPUWrappedAccelerator accel = _GPUs[idx].WrappedAccel;
-                ++_GPUs[idx].NumOfBookedJobs;
+                GPUWrappedAccelerator accel = availableAccels[idx].WrappedAccel;
+                ++availableAccels[idx].NumOfBookedJobs;
                 IncNumOfBookedJobs();
                 return accel;
             }
